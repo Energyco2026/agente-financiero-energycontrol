@@ -341,11 +341,49 @@ function renderCobranzas(state){
   cobranzasBody.innerHTML=rows.length?rows.map(x=>`<tr><td>${x.cliente||''}</td><td>${x.factura_num||x.concepto||''}</td><td>${x.fecha_cobro||''}</td><td>${x.dias_vencido||0}</td><td><span class="badge ${badgeClass(x.prioridad_operativa)}">${x.prioridad_operativa||state}</span></td><td><b>${money(x.monto)}</b></td></tr>`).join(''):'<tr><td colspan="6">No hay registros.</td></tr>';
 }
 async function loadPagos(){
-  const {data,error}=await db.from('agente_pagos_proximos_v1').select('proveedor,concepto,monto_pago,fecha_pago,proyecto_codigo,categoria_pago').order('fecha_pago',{ascending:true});
-  if(error){pagosBody.innerHTML='<tr><td colspan="6">'+error.message+'</td></tr>';return;}
-  pagosData=data||[];const today=new Date();today.setHours(0,0,0,0);const end=new Date(today);end.setDate(end.getDate()+7);const in7=pagosData.filter(x=>{const d=new Date(x.fecha_pago+'T12:00:00');return d>=today&&d<=end}),sum=a=>a.reduce((t,x)=>t+Number(x.monto_pago||0),0);
-  pay7.textContent=money(sum(in7));pay7Count.textContent=in7.length+' pagos';payNomina.textContent=money(sum(in7.filter(x=>x.categoria_pago==='NOMINA')));payPrestamo.textContent=money(sum(in7.filter(x=>x.categoria_pago==='PRESTAMO')));payProveedor.textContent=money(sum(in7.filter(x=>x.categoria_pago==='PROVEEDOR')));
-  pagosBody.innerHTML=pagosData.slice(0,150).map(x=>`<tr><td>${x.fecha_pago||''}</td><td>${x.proveedor||''}</td><td>${x.concepto||''}</td><td>${x.categoria_pago||''}</td><td>${x.proyecto_codigo||'—'}</td><td><b>${money(x.monto_pago)}</b></td></tr>`).join('');
+  const {data,error}=await db.from('agente_pagos_proximos_v1')
+    .select('proveedor,concepto,monto_pago,fecha_pago,proyecto_codigo,categoria_pago')
+    .order('fecha_pago',{ascending:true});
+  if(error){
+    document.getElementById('pagosBody').innerHTML='<tr><td colspan="6">'+error.message+'</td></tr>';
+    return;
+  }
+
+  pagosData=data||[];
+
+  // Fecha operativa Ecuador, sin comparar horas.
+  const fmt = new Intl.DateTimeFormat('en-CA',{
+    timeZone:'America/Guayaquil',
+    year:'numeric',month:'2-digit',day:'2-digit'
+  });
+  const todayStr = fmt.format(new Date());
+
+  // Ventana de 7 días calendario: hoy + 6 días.
+  const [yy,mm,dd] = todayStr.split('-').map(Number);
+  const endDate = new Date(Date.UTC(yy, mm-1, dd+6));
+  const endStr = endDate.toISOString().slice(0,10);
+
+  const in7 = pagosData.filter(x =>
+    x.fecha_pago && x.fecha_pago >= todayStr && x.fecha_pago <= endStr
+  );
+
+  const sum=a=>a.reduce((t,x)=>t+Number(x.monto_pago||0),0);
+
+  document.getElementById('pay7').textContent=money(sum(in7));
+  document.getElementById('pay7Count').textContent=in7.length+' pagos';
+  document.getElementById('payNomina').textContent=money(sum(in7.filter(x=>x.categoria_pago==='NOMINA')));
+  document.getElementById('payPrestamo').textContent=money(sum(in7.filter(x=>x.categoria_pago==='PRESTAMO')));
+  document.getElementById('payProveedor').textContent=money(sum(in7.filter(x=>x.categoria_pago==='PROVEEDOR')));
+
+  document.getElementById('pagosBody').innerHTML=pagosData.slice(0,150).map(x=>`
+    <tr>
+      <td>${x.fecha_pago||''}</td>
+      <td>${x.proveedor||''}</td>
+      <td>${x.concepto||''}</td>
+      <td>${x.categoria_pago||''}</td>
+      <td>${x.proyecto_codigo||'—'}</td>
+      <td><b>${money(x.monto_pago)}</b></td>
+    </tr>`).join('');
 }
 async function loadProyectos(){
   const {data,error}=await db.from('agente_resumen_ejecutivo_proyecto_v1').select('proyecto,proyecto_nombre,cobrado_ejecutado,saldo_cobrable_operativo,oc_comprometidas,pagos_proyectados,cobertura_neta_proyectada,presion_caja').order('pagos_proyectados',{ascending:false});
