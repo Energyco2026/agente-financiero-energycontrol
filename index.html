@@ -341,7 +341,7 @@ function renderCobranzas(state){
   cobranzasBody.innerHTML=rows.length?rows.map(x=>`<tr><td>${x.cliente||''}</td><td>${x.factura_num||x.concepto||''}</td><td>${x.fecha_cobro||''}</td><td>${x.dias_vencido||0}</td><td><span class="badge ${badgeClass(x.prioridad_operativa)}">${x.prioridad_operativa||state}</span></td><td><b>${money(x.monto)}</b></td></tr>`).join(''):'<tr><td colspan="6">No hay registros.</td></tr>';
 }
 async function loadPagos(){
-  const {data,error}=await db.from('agente_pagos_proyectados_v1').select('proveedor,concepto,monto_pago,fecha_pago,proyecto_codigo,categoria_pago').order('fecha_pago',{ascending:true});
+  const {data,error}=await db.from('agente_pagos_proximos_v1').select('proveedor,concepto,monto_pago,fecha_pago,proyecto_codigo,categoria_pago').order('fecha_pago',{ascending:true});
   if(error){pagosBody.innerHTML='<tr><td colspan="6">'+error.message+'</td></tr>';return;}
   pagosData=data||[];const today=new Date();today.setHours(0,0,0,0);const end=new Date(today);end.setDate(end.getDate()+7);const in7=pagosData.filter(x=>{const d=new Date(x.fecha_pago+'T12:00:00');return d>=today&&d<=end}),sum=a=>a.reduce((t,x)=>t+Number(x.monto_pago||0),0);
   pay7.textContent=money(sum(in7));pay7Count.textContent=in7.length+' pagos';payNomina.textContent=money(sum(in7.filter(x=>x.categoria_pago==='NOMINA')));payPrestamo.textContent=money(sum(in7.filter(x=>x.categoria_pago==='PRESTAMO')));payProveedor.textContent=money(sum(in7.filter(x=>x.categoria_pago==='PROVEEDOR')));
