@@ -351,14 +351,16 @@ async function loadPagos(){
 
   pagosData=data||[];
 
-  // Fecha operativa Ecuador, sin comparar horas.
-  const fmt = new Intl.DateTimeFormat('en-CA',{
-    timeZone:'America/Guayaquil',
-    year:'numeric',month:'2-digit',day:'2-digit'
-  });
-  const todayStr = fmt.format(new Date());
+  // Usar la misma fecha operativa del briefing del agente.
+  // Esto evita diferencias entre la fecha del navegador y Supabase.
+  const todayStr = briefing?.fecha_resumen
+    ? String(briefing.fecha_resumen).slice(0,10)
+    : new Intl.DateTimeFormat('en-CA',{
+        timeZone:'America/Guayaquil',
+        year:'numeric',month:'2-digit',day:'2-digit'
+      }).format(new Date());
 
-  // Ventana de 7 días calendario: hoy + 6 días.
+  // Ventana de 7 días calendario: fecha operativa + 6 días.
   const [yy,mm,dd] = todayStr.split('-').map(Number);
   const endDate = new Date(Date.UTC(yy, mm-1, dd+6));
   const endStr = endDate.toISOString().slice(0,10);
