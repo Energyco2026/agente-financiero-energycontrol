@@ -132,15 +132,56 @@
 </div>
 
 <div id="section-cobranzas" class="section">
-  <div class="sectionHeader"><div><h2>Cobranzas</h2><p>Cartera activa, prioridades y cartera histórica</p></div></div>
+  <div class="sectionHeader"><div><h2>Cobranzas</h2><p>Ingresos esperados, hitos, servicios y gestión de cartera</p></div></div>
+
+  <div class="cards">
+    <div class="card" style="cursor:pointer" onclick="renderCobranzaVista('proximos')">
+      <div class="label">Ingresos próximos 7 días</div>
+      <div id="cobIngreso7" class="value">—</div>
+      <div id="cobIngreso7Count" class="mini">—</div>
+    </div>
+    <div class="card" style="cursor:pointer" onclick="renderCobranzaVista('clientes')">
+      <div class="label">Ingresos clientes</div>
+      <div id="cobClientes" class="value">—</div>
+      <div id="cobClientesCount" class="mini">—</div>
+    </div>
+    <div class="card" style="cursor:pointer" onclick="renderCobranzaVista('hitos')">
+      <div class="label">Hitos no facturados</div>
+      <div id="cobHitos" class="value">—</div>
+      <div id="cobHitosCount" class="mini">—</div>
+    </div>
+    <div class="card" style="cursor:pointer" onclick="renderCobranzaVista('servicios')">
+      <div class="label">Facturas por cobrar · Servicios</div>
+      <div id="cobServicios" class="value">—</div>
+      <div id="cobServiciosCount" class="mini">—</div>
+    </div>
+  </div>
+
+  <div style="height:18px"></div>
+  <div class="sectionHeader"><div><h3>Gestión de cobranza</h3><p>Prioridad operativa y cartera vencida</p></div></div>
   <div class="cards">
     <div class="card"><div class="label">Críticas</div><div id="cobCrit" class="value danger">—</div><div id="cobCritMonto" class="mini">—</div></div>
     <div class="card"><div class="label">Altas</div><div id="cobAlta" class="value warn">—</div><div id="cobAltaMonto" class="mini">—</div></div>
     <div class="card"><div class="label">Activas vencidas</div><div id="cobActivas" class="value">—</div><div id="cobActivasMonto" class="mini">—</div></div>
     <div class="card"><div class="label">Históricas por revisar</div><div id="cobHist" class="value">—</div><div id="cobHistMonto" class="mini">—</div></div>
   </div>
-  <div class="toolbar"><button onclick="renderCobranzas('VENCIDA_ACTIVA')">Activas vencidas</button><button onclick="renderCobranzas('PROGRAMADA_FUTURA')">Programadas futuras</button><button onclick="renderCobranzas('FUERA_GESTION_ACTIVA')">Fuera de gestión activa</button></div>
-  <div class="tableWrap"><table><thead><tr><th>Cliente</th><th>Factura / Concepto</th><th>Fecha</th><th>Días</th><th>Prioridad</th><th>Monto</th></tr></thead><tbody id="cobranzasBody"></tbody></table></div>
+
+  <div class="toolbar">
+    <button onclick="renderCobranzaVista('proximos')">Ingresos 7 días</button>
+    <button onclick="renderCobranzaVista('clientes')">Ingresos clientes</button>
+    <button onclick="renderCobranzaVista('hitos')">Hitos no facturados</button>
+    <button onclick="renderCobranzaVista('servicios')">Servicios</button>
+    <button onclick="renderCobranzas('VENCIDA_ACTIVA')">Activas vencidas</button>
+    <button onclick="renderCobranzas('PROGRAMADA_FUTURA')">Programadas futuras</button>
+    <button onclick="renderCobranzas('FUERA_GESTION_ACTIVA')">Históricas</button>
+  </div>
+
+  <div class="tableWrap">
+    <table>
+      <thead id="cobranzasHead"><tr><th>Cliente</th><th>Factura / Concepto</th><th>Fecha</th><th>Días</th><th>Prioridad</th><th>Monto</th></tr></thead>
+      <tbody id="cobranzasBody"></tbody>
+    </table>
+  </div>
 </div>
 
 <div id="section-pagos" class="section">
@@ -306,7 +347,7 @@ function send(){
 }
 
 
-let bancosData=[], cobranzasData=[], pagosData=[], proyectosData=[];
+let bancosData=[], cobranzasData=[], pagosData=[], proyectosData=[], ingresos7Data=[], ingresosClientesData=[], hitosData=[], serviciosData=[];
 
 async function showSection(name){
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
@@ -330,14 +371,133 @@ async function loadBancos(){
   document.getElementById('bancosBody').innerHTML=bancosData.map(x=>{const n=Number(x.saldo_base||0);return `<tr><td>${x.nombre||''}</td><td><b>${money(n)}</b></td><td>${n<0?'<span class="badge critica">NEGATIVO</span>':'<span class="badge baja">POSITIVO</span>'}</td></tr>`}).join('');
 }
 async function loadCobranzas(){
-  const {data,error}=await db.from('agente_cobranza_activa_priorizada_v3').select('cliente,concepto,monto,fecha_cobro,dias_vencido,prioridad_operativa,factura_num,estado_operativo').order('monto',{ascending:false});
-  if(error){document.getElementById('cobranzasBody').innerHTML='<tr><td colspan="6">'+error.message+'</td></tr>';return;}
-  cobranzasData=data||[]; const active=cobranzasData.filter(x=>x.estado_operativo==='VENCIDA_ACTIVA'), crit=active.filter(x=>x.prioridad_operativa==='CRITICA'), alta=active.filter(x=>x.prioridad_operativa==='ALTA'), hist=cobranzasData.filter(x=>x.estado_operativo==='FUERA_GESTION_ACTIVA'), sum=a=>a.reduce((t,x)=>t+Number(x.monto||0),0);
-  cobCrit.textContent=crit.length;cobCritMonto.textContent=money(sum(crit));cobAlta.textContent=alta.length;cobAltaMonto.textContent=money(sum(alta));cobActivas.textContent=active.length;cobActivasMonto.textContent=money(sum(active));cobHist.textContent=hist.length;cobHistMonto.textContent=money(sum(hist)); renderCobranzas('VENCIDA_ACTIVA');
+  const [prioridades, ingresos7, clientes, hitos, servicios] = await Promise.all([
+    db.from('agente_cobranza_activa_priorizada_v3')
+      .select('cliente,concepto,monto,fecha_cobro,dias_vencido,prioridad_operativa,factura_num,estado_operativo,proyecto_codigo')
+      .order('monto',{ascending:false}),
+    db.from('agente_ingresos_proximos_7d_v1')
+      .select('tipo,cliente,referencia,concepto,monto,fecha,proyecto_codigo')
+      .order('fecha',{ascending:true}),
+    db.from('agente_ingresos_clientes_v1')
+      .select('cliente,factura_num,concepto,monto,fecha_cobro,proyecto_codigo,prioridad_operativa,estado_operativo')
+      .order('fecha_cobro',{ascending:true}),
+    db.from('agente_hitos_no_facturados_v1')
+      .select('cliente,concepto,monto,fecha_cobro,proyecto_codigo,prioridad_cobro,accion_sugerida')
+      .order('fecha_cobro',{ascending:true}),
+    db.from('agente_facturas_servicio_v1')
+      .select('cliente,factura,orden_venta,vendedor,fecha_vencimiento,monto_total,monto_pagado,saldo_pendiente,analitica,proyecto_codigo,dias_vencido,estado_cobro')
+      .order('fecha_vencimiento',{ascending:true})
+  ]);
+
+  const errores=[prioridades,ingresos7,clientes,hitos,servicios].filter(x=>x.error);
+  if(errores.length){
+    document.getElementById('cobranzasBody').innerHTML=
+      '<tr><td colspan="6">'+errores.map(x=>x.error.message).join(' · ')+'</td></tr>';
+    return;
+  }
+
+  cobranzasData=prioridades.data||[];
+  ingresos7Data=ingresos7.data||[];
+  ingresosClientesData=clientes.data||[];
+  hitosData=hitos.data||[];
+  serviciosData=servicios.data||[];
+
+  const sum=(a,campo='monto')=>a.reduce((t,x)=>t+Number(x[campo]||0),0);
+
+  document.getElementById('cobIngreso7').textContent=money(sum(ingresos7Data));
+  document.getElementById('cobIngreso7Count').textContent=ingresos7Data.length+' registros';
+
+  document.getElementById('cobClientes').textContent=money(sum(ingresosClientesData));
+  document.getElementById('cobClientesCount').textContent=ingresosClientesData.length+' facturas';
+
+  document.getElementById('cobHitos').textContent=money(sum(hitosData));
+  document.getElementById('cobHitosCount').textContent=hitosData.length+' hitos';
+
+  document.getElementById('cobServicios').textContent=money(sum(serviciosData,'saldo_pendiente'));
+  document.getElementById('cobServiciosCount').textContent=serviciosData.length+' facturas';
+
+  const active=cobranzasData.filter(x=>x.estado_operativo==='VENCIDA_ACTIVA');
+  const crit=active.filter(x=>x.prioridad_operativa==='CRITICA');
+  const alta=active.filter(x=>x.prioridad_operativa==='ALTA');
+  const hist=cobranzasData.filter(x=>x.estado_operativo==='FUERA_GESTION_ACTIVA');
+
+  cobCrit.textContent=crit.length;
+  cobCritMonto.textContent=money(sum(crit));
+  cobAlta.textContent=alta.length;
+  cobAltaMonto.textContent=money(sum(alta));
+  cobActivas.textContent=active.length;
+  cobActivasMonto.textContent=money(sum(active));
+  cobHist.textContent=hist.length;
+  cobHistMonto.textContent=money(sum(hist));
+
+  renderCobranzaVista('proximos');
 }
+
+function renderCobranzaVista(tipo){
+  const head=document.getElementById('cobranzasHead');
+  const body=document.getElementById('cobranzasBody');
+
+  if(tipo==='proximos'){
+    head.innerHTML='<tr><th>Fecha</th><th>Tipo</th><th>Cliente</th><th>Referencia</th><th>Proyecto</th><th>Monto</th></tr>';
+    body.innerHTML=ingresos7Data.length?ingresos7Data.map(x=>`
+      <tr>
+        <td>${x.fecha||''}</td>
+        <td><span class="badge ${x.tipo==='HITO'?'media':'baja'}">${x.tipo||''}</span></td>
+        <td>${x.cliente||''}</td>
+        <td>${x.referencia||x.concepto||''}</td>
+        <td>${x.proyecto_codigo||'—'}</td>
+        <td><b>${money(x.monto)}</b></td>
+      </tr>`).join(''):'<tr><td colspan="6">No hay ingresos programados en los próximos 7 días.</td></tr>';
+    return;
+  }
+
+  if(tipo==='clientes'){
+    head.innerHTML='<tr><th>Fecha cobro</th><th>Cliente</th><th>Factura</th><th>Proyecto</th><th>Estado</th><th>Monto</th></tr>';
+    body.innerHTML=ingresosClientesData.length?ingresosClientesData.map(x=>`
+      <tr>
+        <td>${x.fecha_cobro||''}</td>
+        <td>${x.cliente||''}</td>
+        <td>${x.factura_num||x.concepto||''}</td>
+        <td>${x.proyecto_codigo||'—'}</td>
+        <td><span class="badge ${badgeClass(x.prioridad_operativa)}">${x.estado_operativo||''}</span></td>
+        <td><b>${money(x.monto)}</b></td>
+      </tr>`).join(''):'<tr><td colspan="6">No hay facturas de clientes en gestión activa.</td></tr>';
+    return;
+  }
+
+  if(tipo==='hitos'){
+    head.innerHTML='<tr><th>Fecha estimada</th><th>Cliente</th><th>Hito</th><th>Proyecto</th><th>Acción</th><th>Monto</th></tr>';
+    body.innerHTML=hitosData.length?hitosData.map(x=>`
+      <tr>
+        <td>${x.fecha_cobro||''}</td>
+        <td>${x.cliente||''}</td>
+        <td>${x.concepto||''}</td>
+        <td>${x.proyecto_codigo||'—'}</td>
+        <td>${x.accion_sugerida||'Validar condición del hito'}</td>
+        <td><b>${money(x.monto)}</b></td>
+      </tr>`).join(''):'<tr><td colspan="6">No hay hitos no facturados registrados.</td></tr>';
+    return;
+  }
+
+  if(tipo==='servicios'){
+    head.innerHTML='<tr><th>Vencimiento</th><th>Cliente / Factura</th><th>Orden de venta</th><th>Analítica</th><th>Valor factura</th><th>Pagado</th><th>Saldo pendiente</th></tr>';
+    body.innerHTML=serviciosData.length?serviciosData.map(x=>`
+      <tr>
+        <td>${x.fecha_vencimiento||''}<br><span class="badge ${x.estado_cobro==='VENCIDA'?'critica':x.estado_cobro==='HOY'?'alta':'baja'}">${x.estado_cobro||''}</span></td>
+        <td>${x.cliente||''}<br><small class="muted">${x.factura||''}</small></td>
+        <td>${x.orden_venta||'—'}<br><small class="muted">${x.vendedor||''}</small></td>
+        <td>${x.analitica||x.proyecto_codigo||'—'}</td>
+        <td>${money(x.monto_total)}</td>
+        <td>${money(x.monto_pagado)}</td>
+        <td><b>${money(x.saldo_pendiente)}</b></td>
+      </tr>`).join(''):'<tr><td colspan="7">Todavía no se han sincronizado facturas de servicios.</td></tr>';
+  }
+}
+
 function badgeClass(p){p=String(p||'').toLowerCase();return p.includes('crit')?'critica':p.includes('alta')?'alta':p.includes('media')?'media':p.includes('baja')?'baja':'futura'}
 function renderCobranzas(state){
   const rows=cobranzasData.filter(x=>x.estado_operativo===state);
+  document.getElementById('cobranzasHead').innerHTML='<tr><th>Cliente</th><th>Factura / Concepto</th><th>Fecha</th><th>Días</th><th>Prioridad</th><th>Monto</th></tr>';
   cobranzasBody.innerHTML=rows.length?rows.map(x=>`<tr><td>${x.cliente||''}</td><td>${x.factura_num||x.concepto||''}</td><td>${x.fecha_cobro||''}</td><td>${x.dias_vencido||0}</td><td><span class="badge ${badgeClass(x.prioridad_operativa)}">${x.prioridad_operativa||state}</span></td><td><b>${money(x.monto)}</b></td></tr>`).join(''):'<tr><td colspan="6">No hay registros.</td></tr>';
 }
 async function loadPagos(){
